@@ -2,7 +2,6 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -26,22 +25,24 @@ const registerSchema = z
     path: ["confirmPassword"],
   });
 
-// ====== types ======
 type LoginValues = z.infer<typeof loginSchema>;
 type RegisterValues = z.infer<typeof registerSchema>;
 
 export default function LoginPage() {
-  const searchParams = useSearchParams();
+  // começa na aba de login
   const [activeTab, setActiveTab] = useState<"login" | "register">("login");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // se vier /login?mode=register abre já na aba de cadastro
+  // 👇 isso aqui substitui o useSearchParams
+  // e NÃO roda no build, só no browser
   useEffect(() => {
-    const mode = searchParams.get("mode");
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const mode = params.get("mode");
     if (mode === "register") {
       setActiveTab("register");
     }
-  }, [searchParams]);
+  }, []);
 
   const {
     register,
@@ -62,20 +63,18 @@ export default function LoginPage() {
 
   const onSubmitLogin = async (data: LoginValues) => {
     setIsSubmitting(true);
-    // aqui você chama sua API /auth/login
     console.log("Login:", data);
     setTimeout(() => {
       setIsSubmitting(false);
-    }, 1000);
+    }, 800);
   };
 
   const onSubmitRegister = async (data: RegisterValues) => {
     setIsSubmitting(true);
-    // aqui você chama sua API /auth/register
     console.log("Register:", data);
     setTimeout(() => {
       setIsSubmitting(false);
-    }, 1000);
+    }, 800);
   };
 
   const passwordValue = watch("password");
@@ -304,7 +303,6 @@ export default function LoginPage() {
                       {registerErrors.password.message}
                     </p>
                   )}
-                  {/* mini checklist */}
                   <div className="flex gap-2 mt-2 flex-wrap">
                     <span
                       className={`text-[10px] px-2 py-1 rounded-full ${
