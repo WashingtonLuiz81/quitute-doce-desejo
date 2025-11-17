@@ -1,3 +1,4 @@
+// src/app/forgot-password/page.tsx
 "use client";
 
 import React, { useState } from "react";
@@ -6,6 +7,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Mail, Loader2 } from "lucide-react";
+import { useConfigStore } from "@/store/useConfigStore";
 
 const schema = z.object({
   email: z.string().email("Informe um e-mail válido"),
@@ -14,7 +16,9 @@ const schema = z.object({
 type ForgotValues = z.infer<typeof schema>;
 
 export default function ForgotPasswordPage() {
+  const { config } = useConfigStore();
   const [sent, setSent] = useState(false);
+
   const {
     register,
     handleSubmit,
@@ -26,10 +30,20 @@ export default function ForgotPasswordPage() {
   const onSubmit = async (data: ForgotValues) => {
     // aqui você chama sua API: POST /auth/forgot-password
     console.log("Esqueci minha senha:", data);
-    // simula sucesso
     await new Promise((res) => setTimeout(res, 800));
     setSent(true);
   };
+
+  // Texto padrão para abrir o WhatsApp a partir do config
+  const supportText =
+    // se você tiver uma mensagem específica no config, usa ela
+    (config as any)?.messages?.support ??
+    config.messages?.greeting ??
+    "Olá! Preciso de ajuda para recuperar meu acesso.";
+
+  const whatsappHref = `https://wa.me/${config.whatsapp}?text=${encodeURIComponent(
+    supportText
+  )}`;
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50 py-10 px-4">
@@ -52,7 +66,7 @@ export default function ForgotPasswordPage() {
         {/* card */}
         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
           <div className="p-6">
-            <h1 className="text-base font-semibold text-[rgb(15,23,42)] mb-1">
+            <h1 className="text/base font-semibold text-[rgb(15,23,42)] mb-1">
               Esqueci minha senha
             </h1>
             <p className="text-sm text-slate-500 mb-5">
@@ -136,7 +150,9 @@ export default function ForgotPasswordPage() {
         <p className="text-center text-xs text-slate-400 mt-4">
           Precisa de ajuda?{" "}
           <a
-            href="https://wa.me/5511999999999"
+            href={whatsappHref}
+            target="_blank"
+            rel="noreferrer"
             className="text-[rgb(248,113,113)] hover:underline"
           >
             Fale no WhatsApp

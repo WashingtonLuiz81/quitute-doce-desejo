@@ -1,0 +1,49 @@
+[
+  {
+    "id": "bolo-red-velvet",
+    "name": "Bolo Red Velvet",
+    "price": 79.9,
+    "unit": "un",
+    "category": "bolos",
+    "imageUrl": "/img/bolo-red-velvet.jpg",
+    "description": "Massa aveludada com cream cheese.",
+    "badge": "Mais pedido"
+  },
+  {
+    "id": "brigadeiro-gourmet",
+    "name": "Brigadeiro Gourmet",
+    "price": 6.5,
+    "unit": "un",
+    "category": "doces",
+    "imageUrl": "/img/brigadeiro.jpg",
+    "description": "Belga, cremoso e com finalização perfeita."
+  },
+  {
+    "id": "cookies-chocolate",
+    "name": "Cookies de Chocolate",
+    "price": 8.9,
+    "unit": "un",
+    "category": "cookies",
+    "imageUrl": "/img/cookie.jpg",
+    "description": "Casquinha crocante e miolo macio."
+  },
+  {
+    "id": "torta-limao",
+    "name": "Torta de Limão",
+    "price": 59.9,
+    "unit": "un",
+    "category": "tortas",
+    "imageUrl": "/img/torta-limao.jpg",
+    "description": "Cítrica, cremosa e equilibrada."
+  },
+  {
+    "id": "bolo-cenoura",
+    "name": "Bolo de Cenoura",
+    "price": 49.9,
+    "unit": "un",
+    "category": "bolos",
+    "imageUrl": "/img/bolo-cenoura.jpg",
+    "description": "Cobertura generosa de chocolate.",
+    "badge": "Promo"
+  }
+]

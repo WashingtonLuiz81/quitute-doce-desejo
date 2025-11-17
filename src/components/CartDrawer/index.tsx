@@ -1,109 +1,152 @@
 "use client";
 
-import React from "react";
-import { X } from "lucide-react";
-import Link from "next/link";
+import React, { useMemo, useState, useEffect } from "react";
+import { X, Trash2, ArrowRight, ArrowLeft } from "lucide-react";
+import { useCartStore } from "@/store/useCartStore";
+import CartCheckout from "@/components/CartCheckout";
 
-interface CartDrawerProps {
+type CartDrawerProps = {
   open: boolean;
   onClose: () => void;
+};
+
+function formatBRL(v: number) {
+  return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
-const mockItems = [
-  { id: 1, name: "Brigadeiro gourmet", qty: 2, price: 5.5 },
-  { id: 2, name: "Bolo de pote", qty: 1, price: 12 },
-];
-
 const CartDrawer: React.FC<CartDrawerProps> = ({ open, onClose }) => {
-  const total = mockItems.reduce((acc, item) => acc + item.price * item.qty, 0);
+  const { items, removeItem, setQty } = useCartStore();
+  const [step, setStep] = useState<1 | 2>(1);
+
+  const subtotal = useMemo(
+    () => items.reduce((acc, i) => acc + Number(i.price) * Number(i.qty ?? 1), 0),
+    [items]
+  );
+
+  // sempre que abrir, volta para o passo 1
+  useEffect(() => {
+    if (open) setStep(1);
+  }, [open]);
 
   return (
     <>
-      {/* overlay */}
-      {open && (
-        <div
-          className="fixed inset-0 bg-black/30 backdrop-blur-[1px] z-[60] md:hidden"
-          onClick={onClose}
-        />
-      )}
+      {/* Overlay */}
+      <div
+        onClick={onClose}
+        className={[
+          "fixed inset-0 bg-black/40 backdrop-blur-[1px] transition-opacity z-[1000]",
+          open ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none",
+        ].join(" ")}
+        aria-hidden={!open}
+      />
 
+      {/* Drawer */}
       <aside
-        className={`fixed right-0 top-0 z-[70] h-full w-full max-w-sm bg-white shadow-2xl border-l border-[rgb(243,244,246)] transition-transform duration-200
-        ${open ? "translate-x-0" : "translate-x-full"}`}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Carrinho"
+        className={[
+          "fixed right-0 top-0 h-full w-[380px] max-w-[92vw] bg-white shadow-2xl",
+          "transition-transform duration-300 ease-out z-[1001]",
+          open ? "translate-x-0" : "translate-x-full",
+          "flex flex-col",
+        ].join(" ")}
       >
-        {/* header */}
-        <div className="flex items-center justify-between px-4 py-4 border-b border-[rgb(243,244,246)]">
-          <div>
-            <p className="text-sm font-semibold text-slate-900">Seu carrinho</p>
-            <p className="text-xs text-slate-500">{mockItems.length} itens</p>
+        {/* Cabeçalho */}
+        <div className="flex items-center justify-between p-4 border-b">
+          <div className="flex items-center gap-2">
+            <h3 className="text-lg font-semibold text-slate-900">Seu carrinho</h3>
+            <span className="text-xs text-slate-500">
+              {step === 1 ? "Passo 1/2" : "Passo 2/2"}
+            </span>
           </div>
           <button
             onClick={onClose}
-            className="rounded-full p-2 hover:bg-slate-100 transition"
+            aria-label="Fechar carrinho"
+            className="inline-flex items-center justify-center rounded-full p-2 hover:bg-slate-100"
           >
             <X className="h-5 w-5 text-slate-700" />
           </button>
         </div>
 
-        {/* lista de itens */}
-        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
-          {mockItems.map((item) => (
-            <div
-              key={item.id}
-              className="flex items-center justify-between gap-3 border border-slate-100 rounded-lg px-3 py-2"
-            >
-              <div>
-                <p className="text-sm font-medium text-slate-900">
-                    {item.name}
-                </p>
-                <p className="text-xs text-slate-500">
-                  {item.qty}x • R$ {item.price.toFixed(2).replace(".", ",")}
-                </p>
-              </div>
-              <p className="text-sm font-semibold text-slate-900">
-                R$ {(item.price * item.qty).toFixed(2).replace(".", ",")}
-              </p>
-            </div>
-          ))}
+        {/* Conteúdo */}
+        <div className="flex-1 overflow-y-auto p-4">
+          {step === 1 ? (
+            items.length === 0 ? (
+              <p className="text-sm text-slate-500">Seu carrinho está vazio.</p>
+            ) : (
+              <ul className="space-y-4">
+                {items.map((i) => (
+                  <li key={i.id} className="flex items-center gap-3">
+                    <div className="h-14 w-14 flex-shrink-0 rounded-lg bg-slate-100" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-slate-900 truncate">{i.name}</p>
+                      <p className="text-xs text-slate-500">
+                        {formatBRL(Number(i.price))} • {(i as any).unit ?? "un"}
+                      </p>
+                      <div className="mt-1 flex items-center gap-2">
+                        <label className="text-xs text-slate-600">Qtd</label>
+                        <input
+                          type="number"
+                          min={1}
+                          value={Number(i.qty ?? 1)}
+                          onChange={(e) =>
+                            setQty(String(i.id), Math.max(1, Number(e.target.value || 1)))
+                          }
+                          className="w-16 rounded-md border border-slate-300 px-2 py-1 text-sm"
+                        />
+                      </div>
+                    </div>
 
-          {mockItems.length === 0 && (
-            <p className="text-center text-sm text-slate-400 mt-6">
-              Seu carrinho está vazio.
-            </p>
+                    <div className="text-right">
+                      <p className="text-sm font-semibold text-slate-900">
+                        {formatBRL(Number(i.price) * Number(i.qty ?? 1))}
+                      </p>
+                      <button
+                        onClick={() => removeItem(String(i.id))}
+                        className="mt-2 inline-flex items-center gap-1 text-xs text-red-500 hover:text-red-600"
+                        title="Remover"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        Remover
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )
+          ) : (
+            <CartCheckout onBack={() => setStep(1)} />
           )}
         </div>
 
-        {/* footer */}
-        <div className="border-t border-slate-100 px-4 py-4 bg-white">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-sm text-slate-500">Total</span>
-            <span className="text-lg font-semibold text-slate-900">
-              R$ {total.toFixed(2).replace(".", ",")}
-            </span>
+        {/* Rodapé / ações */}
+        {step === 1 ? (
+          <div className="border-t p-4">
+            <div className="flex items-center justify-between text-sm mb-3">
+              <span className="text-slate-600">Subtotal</span>
+              <span className="font-semibold text-slate-900">{formatBRL(subtotal)}</span>
+            </div>
+            <button
+              onClick={() => setStep(2)}
+              disabled={items.length === 0}
+              className="w-full inline-flex items-center justify-center gap-2 rounded-full bg-[rgb(248,113,113)] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[rgb(248,113,113)]/90 disabled:opacity-60"
+            >
+              Continuar
+              <ArrowRight className="h-4 w-4" />
+            </button>
           </div>
-
-          {/* finalizar no WhatsApp */}
-          <a
-            href={`https://wa.me/5511999999999?text=${encodeURIComponent(
-              "Olá! Quero fazer este pedido: " +
-                mockItems.map((i) => `${i.qty}x ${i.name}`).join(", ") +
-                ` • Total: R$ ${total.toFixed(2).replace(".", ",")}`
-            )}`}
-            target="_blank"
-            className="block w-full text-center rounded-full bg-[rgb(248,113,113)] text-white py-2.5 text-sm font-medium hover:bg-[rgb(248,113,113)]/90 transition"
-          >
-            Finalizar pelo WhatsApp
-          </a>
-
-          {/* link opcional */}
-          <Link
-            href="/carrinho"
-            className="block text-center text-xs text-slate-400 mt-3 hover:text-slate-500"
-            onClick={onClose}
-          >
-            Ver carrinho completo
-          </Link>
-        </div>
+        ) : (
+          <div className="border-t p-4">
+            <button
+              onClick={() => setStep(1)}
+              className="w-full inline-flex items-center justify-center gap-2 rounded-full border border-slate-200 px-5 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Voltar ao carrinho
+            </button>
+          </div>
+        )}
       </aside>
     </>
   );

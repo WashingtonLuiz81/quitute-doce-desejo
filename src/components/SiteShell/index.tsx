@@ -1,16 +1,17 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import Header from "../Header";
 import CartDrawer from "../CartDrawer";
 import Footer from "../Footer";
+import { useCartStore } from "@/store/useCartStore";
+import { useCartDrawerStore } from "@/store/useCartDrawerStore";
 
-// simulação de usuário
+// Simulação de usuário (ainda sem login real)
 const mockUser = {
   name: "Jessica Jones",
   email: "jessica@example.com",
-  image: "", // coloca uma url para testar com foto
-  // image: "https://i.pravatar.cc/150?img=3",
+  image: "", // Exemplo: "https://i.pravatar.cc/150?img=3"
 };
 
 type Props = {
@@ -18,16 +19,22 @@ type Props = {
 };
 
 const SiteShell: React.FC<Props> = ({ children }) => {
-  const [cartOpen, setCartOpen] = useState(false);
+  // total de itens no carrinho
+  const cartCount = useCartStore((s) =>
+    s.items.reduce((acc, item) => acc + item.qty, 0)
+  );
+
+  // controle do Drawer via Zustand
+  const { isOpen, open, close, toggle } = useCartDrawerStore();
 
   return (
     <>
       <Header
-        cartCount={3}
-        onCartClick={() => setCartOpen(true)}
-        user={null}
+        cartCount={cartCount}
+        onCartClick={toggle}
+        user={null /* ou mockUser para simular logado */}
       />
-      <CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} />
+      <CartDrawer open={isOpen} onClose={close} />
       <main>{children}</main>
       <Footer />
     </>

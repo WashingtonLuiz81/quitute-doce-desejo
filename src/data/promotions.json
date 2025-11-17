@@ -1,0 +1,16 @@
+{
+  "bundles": [
+    {
+      "id": "combo-festa-01",
+      "name": "Combo Festa: Bolo + Brigadeiros + Suco",
+      "price": 95.0,
+      "image": "/img/combo-festa.jpg",
+      "items": [
+        { "productId": "bolo-cenoura", "qty": 1 },
+        { "productId": "brigadeiro-gourmet", "qty": 10 }
+      ],
+      "tags": ["promo", "combo"],
+      "available": true
+    }
+  ]
+}

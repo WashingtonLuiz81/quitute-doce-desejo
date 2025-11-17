@@ -2,21 +2,24 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Sparkles, Candy, CakeSlice, IceCream, Cookie } from "lucide-react";
-import ProductCard, { type Product } from "@/components/ProductCard";
+import {
+  Sparkles,
+  Candy,
+  CakeSlice,
+  IceCream,
+  Cookie,
+  Gift,
+} from "lucide-react";
 
-const ALL_PRODUCTS: Product[] = [
-  { id: "1", name: "Bolo Red Velvet", price: 79.9, badge: "Mais pedido", category: "bolos", imageUrl: "", description: "Massa aveludada com cream cheese." },
-  { id: "2", name: "Brigadeiro Gourmet", price: 6.5, category: "doces", imageUrl: "", description: "Belga, cremoso e com finalização perfeita." },
-  { id: "3", name: "Cookies de Chocolate", price: 8.9, category: "cookies", imageUrl: "", description: "Casquinha crocante e miolo macio." },
-  { id: "4", name: "Torta de Limão", price: 59.9, category: "tortas", imageUrl: "", description: "Cítrica, cremosa e equilibrada." },
-  { id: "5", name: "Cupcake Baunilha", price: 9.5, category: "doces", imageUrl: "", description: "Cobertura buttercream com confeitos." },
-  { id: "6", name: "Bolo de Cenoura", price: 49.9, badge: "Promo", category: "bolos", imageUrl: "", description: "Cobertura generosa de chocolate." },
-  { id: "7", name: "Palha Italiana", price: 7.9, category: "doces", imageUrl: "", description: "Doce clássico com toque artesanal." },
-  { id: "8", name: "Picolé Artesanal", price: 12.9, category: "gelados", imageUrl: "", description: "Frutas de verdade, sem mistério." },
-];
+import ProductCard from "@/components/ProductCard";
+import type { Product } from "@/lib/types";
+import { listProducts, listBundles } from "@/lib/products";
+import { useCartStore } from "@/store/useCartStore";
+import { useConfigStore } from "@/store/useConfigStore";
 
-const CATEGORIES = [
+const ProductCardAny = ProductCard as unknown as React.FC<any>;
+
+const BASE_CATEGORIES = [
   { key: "todas", label: "Todas", icon: Sparkles },
   { key: "bolos", label: "Bolos", icon: CakeSlice },
   { key: "doces", label: "Doces", icon: Candy },
@@ -27,20 +30,36 @@ const CATEGORIES = [
 
 export default function Home() {
   const [loading, setLoading] = useState(true);
-  const [activeCategory, setActiveCategory] =
-    useState<(typeof CATEGORIES)[number]["key"]>("todas");
+  const [activeCategory, setActiveCategory] = useState<string>("todas");
 
-  // Simula usuário logado -> mostra estrela
+  // Simula usuário logado -> favoritos
   const isLoggedIn = true;
 
-  // Favoritos persistidos
+  // Favoritos
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
 
-  // carregar do localStorage (somente no client)
+  // Carrinho
+  const addItem = useCartStore((s) => s.addItem);
+  const items = useCartStore((s) => s.items);
+
+  // WhatsApp via config
+  const { config } = useConfigStore();
+  const whatsappHref = useMemo(() => {
+    const onlyDigits = (config.whatsapp ?? "").replace(/\D/g, "");
+    return onlyDigits ? `https://wa.me/${onlyDigits}` : "#";
+  }, [config.whatsapp]);
+
+  // “Adicionado” (2s)
+  const [justAdded, setJustAdded] = useState<Record<string, boolean>>({});
+
+  // Loading + favoritos
   useEffect(() => {
     const t = setTimeout(() => setLoading(false), 600);
     try {
-      const raw = typeof window !== "undefined" ? localStorage.getItem("qd:favorites") : null;
+      const raw =
+        typeof window !== "undefined"
+          ? localStorage.getItem("qd:favorites")
+          : null;
       if (raw) {
         const arr: string[] = JSON.parse(raw);
         setFavoriteIds(new Set(arr));
@@ -49,7 +68,6 @@ export default function Home() {
     return () => clearTimeout(t);
   }, []);
 
-  // salvar no localStorage quando mudar
   useEffect(() => {
     try {
       const arr = Array.from(favoriteIds);
@@ -57,25 +75,74 @@ export default function Home() {
     } catch {}
   }, [favoriteIds]);
 
-  const products = useMemo(() => {
-    if (activeCategory === "todas") return ALL_PRODUCTS;
-    return ALL_PRODUCTS.filter((p) => p.category === activeCategory);
-  }, [activeCategory]);
+  // Dados
+  const allProducts = useMemo(() => listProducts(), []);
+  const bundles = useMemo(() => listBundles(), []);
 
-  const toggleFavorite = (id: string, next: boolean) => {
+  // Categorias dinâmicas (Combos se existir)
+  const categories = useMemo(() => {
+    const hasCombos = bundles.length > 0;
+    return hasCombos
+      ? [...BASE_CATEGORIES, { key: "combos", label: "Combos", icon: Gift }]
+      : BASE_CATEGORIES;
+  }, [bundles]);
+
+  // Normaliza combos como Product
+  const combinedProducts: Product[] = useMemo((): Product[] => {
+    return [
+      ...allProducts,
+      ...bundles.map((b): Product => ({
+        id: b.id,
+        name: b.name,
+        price: b.price,
+        unit: "combo",
+        category: "combos",
+        imageUrl: b.image,
+        description: b.items
+          .map((it) => `${it.qty}x ${it.productId.replace(/-/g, " ")}`)
+          .join(", "),
+        badge: "Combo",
+      })),
+    ];
+  }, [allProducts, bundles]);
+
+  // Filtro por categoria
+  const products = useMemo(() => {
+    if (activeCategory === "todas") return combinedProducts;
+    return combinedProducts.filter((p) => p.category === activeCategory);
+  }, [activeCategory, combinedProducts]);
+
+  // Favoritar
+  const toggleFavorite = (id: string | number, next: boolean) => {
+    const key = String(id);
     setFavoriteIds((prev) => {
       const copy = new Set(prev);
-      if (next) copy.add(id);
-      else copy.delete(id);
+      if (next) copy.add(key);
+      else copy.delete(key);
       return copy;
     });
+  };
+
+  // Está no carrinho?
+  const isInCart = (productId: string) =>
+    (items ?? []).some(
+      (it: any) => String(it.id ?? it.sellableId) === String(productId)
+    );
+
+  // Adicionar ao carrinho
+  const handleAddToCart = (prod: Product) => {
+    addItem({ id: prod.id, name: prod.name, price: prod.price }, 1);
+    setJustAdded((prev) => ({ ...prev, [prod.id]: true }));
+    setTimeout(() => {
+      setJustAdded((prev) => ({ ...prev, [prod.id]: false }));
+    }, 2000);
   };
 
   const favCount = favoriteIds.size;
 
   return (
     <main>
-      {/* HERO (igual) */}
+      {/* HERO */}
       <section className="relative overflow-hidden">
         <div className="mx-auto max-w-6xl px-4 md:px-6 py-10 md:py-16">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 items-center">
@@ -101,7 +168,7 @@ export default function Home() {
                   Ver produtos
                 </Link>
                 <a
-                  href="https://wa.me/5500000000000"
+                  href={whatsappHref}
                   target="_blank"
                   rel="noreferrer"
                   className="inline-flex items-center justify-center rounded-full border border-[rgb(248,113,113)]/30 text-[rgb(15,23,42)] px-5 py-2.5 text-sm font-medium hover:shadow-sm transition"
@@ -129,7 +196,7 @@ export default function Home() {
       {/* CHIPS */}
       <section className="mx-auto max-w-6xl px-4 md:px-6">
         <div className="flex items-center gap-2 md:gap-3 overflow-x-auto pb-2">
-          {CATEGORIES.map(({ key, label, icon: Icon }) => {
+          {categories.map(({ key, label, icon: Icon }) => {
             const active = activeCategory === key;
             return (
               <button
@@ -150,14 +217,16 @@ export default function Home() {
         </div>
       </section>
 
-      {/* GRID */}
+      {/* GRID (altura uniforme em todas as larguras) */}
       <section className="mx-auto max-w-6xl px-4 md:px-6 py-8 md:py-10">
         <div className="flex items-end justify-between mb-4 md:mb-6">
           <div>
             <h2 className="text-xl md:text-2xl font-semibold text-[rgb(15,23,42)]">
               {activeCategory === "todas"
                 ? "Destaques da semana"
-                : `Categoria: ${CATEGORIES.find(c => c.key === activeCategory)?.label}`}
+                : `Categoria: ${
+                    categories.find((c) => c.key === activeCategory)?.label
+                  }`}
             </h2>
             <p className="text-sm text-[rgb(100,116,139)]">
               Produtos artesanais feitos sob encomenda.
@@ -172,7 +241,6 @@ export default function Home() {
               Ver todos →
             </Link>
 
-            {/* Link de favoritos */}
             {isLoggedIn && (
               <Link
                 href="/favoritos"
@@ -185,49 +253,50 @@ export default function Home() {
         </div>
 
         {loading ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5 md:gap-6 items-stretch justify-items-center">
             {Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className="h-[240px] rounded-2xl bg-slate-100 animate-pulse" />
-            ))}
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
-            {products.map((p) => (
-              <ProductCard
-                key={p.id}
-                product={p}
-                onAddToCart={() => console.log("add to cart:", p.id)}
-                canFavorite={isLoggedIn}
-                isFavorite={favoriteIds.has(p.id)}
-                onToggleFavorite={toggleFavorite}
+              <div
+                key={i}
+                className="w-full min-h-[360px] md:min-h-[420px] rounded-2xl bg-slate-100 animate-pulse"
               />
             ))}
           </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5 md:gap-6 items-stretch justify-items-center">
+            {products.map((p) => {
+              const inCart = isInCart(p.id);
+              // “Adicionado” (2s) > “No carrinho” > badge original
+              const dynamicBadge =
+                justAdded[p.id] ? "Adicionado" : inCart ? "No carrinho" : p.badge;
+
+              const uiProduct: Product = { ...p, badge: dynamicBadge };
+
+              return (
+                <div
+                  key={p.id}
+                  className="
+                    w-full
+                    min-h-[360px] md:min-h-[420px]
+                    [&>*]:h-full
+                  "
+                >
+                  <ProductCardAny
+                    product={uiProduct}
+                    onAddToCart={() => addItem({ id: p.id, name: p.name, price: p.price }, 1)}
+                    canFavorite={isLoggedIn}
+                    isFavorite={favoriteIds.has(String(p.id))}
+                    onToggleFavorite={toggleFavorite}
+                  />
+                </div>
+              );
+            })}
+          </div>
         )}
-
-        {/* CTA mobile */}
-        <div className="mt-6 md:hidden grid grid-cols-2 gap-2">
-          <Link
-            href="/produtos"
-            className="inline-flex items-center justify-center rounded-full border border-[rgb(248,113,113)]/30 text-[rgb(15,23,42)] px-5 py-2.5 text-sm font-medium hover:shadow-sm transition"
-          >
-            Ver todos
-          </Link>
-
-          {isLoggedIn && (
-            <Link
-              href="/favoritos"
-              className="inline-flex items-center justify-center rounded-full bg-[rgb(248,113,113)] text-white px-5 py-2.5 text-sm font-medium hover:bg-[rgb(248,113,113)]/90 transition"
-            >
-              Favoritos ({favCount})
-            </Link>
-          )}
-        </div>
       </section>
 
-      {/* FAIXA WHATS (igual) */}
+      {/* FAIXA WHATS (usa config.whatsapp) */}
       <section className="mx-auto max-w-6xl px-4 md:px-6 pb-12 md:pb-16">
-        <div className="rounded-2xl border border-[rgb(248,113,113)]/20 bg-[rgb(248,113,113)]/10 p-5 md:p-7 flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
+        <div className="rounded-2xl border border-[rgb(248,113,113)]/20 bg-[rgb(248,113,113)]/10 p-5 md:py-7 md:px-7 flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
           <div>
             <h3 className="text-[rgb(15,23,42)] font-semibold text-lg">
               Tem dúvida ou quer personalizar o pedido?
@@ -237,7 +306,7 @@ export default function Home() {
             </p>
           </div>
           <a
-            href="https://wa.me/5500000000000"
+            href={whatsappHref}
             target="_blank"
             rel="noreferrer"
             className="inline-flex items-center justify-center rounded-full bg-[rgb(248,113,113)] text-white px-5 py-2.5 text-sm font-medium hover:bg-[rgb(248,113,113)]/90 transition"

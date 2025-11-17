@@ -110,7 +110,7 @@ const Header: React.FC<HeaderProps> = ({
 
             {/* USER BADGE DESKTOP */}
             <div className="relative">
-              <button
+              {/* <button
                 type="button"
                 onClick={() => setUserMenuOpen((prev) => !prev)}
                 className="flex items-center gap-2 rounded-full bg-white border border-slate-100 px-2.5 py-1.5 hover:shadow-sm transition"
@@ -136,7 +136,7 @@ const Header: React.FC<HeaderProps> = ({
                     {user?.name?.split(" ")[0] ?? "Usuário"}
                   </span>
                 )}
-              </button>
+              </button> */}
 
               {userMenuOpen && (
                 <div className="absolute right-0 mt-2 w-56 rounded-lg border border-slate-100 bg-white shadow-lg py-1 z-50">
@@ -195,7 +195,7 @@ const Header: React.FC<HeaderProps> = ({
           <div className="flex items-center gap-2 md:hidden relative">
             {/* USER BADGE MOBILE */}
             <div className="relative">
-              <button
+              {/* <button
                 type="button"
                 onClick={() => setUserMenuMobileOpen((prev) => !prev)}
                 className="flex items-center justify-center h-9 w-9 rounded-full bg-white border border-slate-100 hover:shadow transition"
@@ -216,7 +216,7 @@ const Header: React.FC<HeaderProps> = ({
                 ) : (
                   <UserIcon className="h-4 w-4 text-slate-500" />
                 )}
-              </button>
+              </button> */}
 
               {userMenuMobileOpen && (
                 <div className="absolute right-0 mt-2 w-48 rounded-lg border border-slate-100 bg-white shadow-lg py-1 z-50">
